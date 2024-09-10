@@ -1,3 +1,5 @@
+from pydoc import describe
+
 from fastapi import FastAPI
 from enum import Enum
 from pydantic import BaseModel,Field
@@ -53,7 +55,7 @@ async def read(id:int ,name: str,grade: str | None = None):
 # how to send a Request body
 
 class Item(BaseModel):
-    name : str = Field(default=None,max_length=300,description="The name of the item")
+    name : str = Field(default=None,max_length=300,description="The name of the item",examples=["A very good model"])
     description: str | None = None
     price: int
 
@@ -101,14 +103,85 @@ class Tax(BaseModel):
     sg: int
 
 class NestedItems(BaseModel):
-    name: str
+    name: str = Body(openapi_examples={
+        "normal": {
+            "summary": "A normal example",
+            "description": "Your name normally",
+            "value": "Divyansh Karan",
+        },
+        "lowwercase": {
+            "summary": "A lowercase example",
+            "description": "your name in lowercase",
+            "value": "divyansh karan",
+        },
+    })
     description: str | None
     price: float
-    tags: list[str] = []
-    friends: set[str] = []
     tax: Tax | None
-    weights: dict[str,float]
+    # weights: dict[str,float]
+    tags: list[str] = []
+    friends: list[str] = []
+    # This is a exapmle data that the user at endpoiunt will see about what type of data we are sending
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "divyansh",
+                   "description": "Divyansh Karan",
+                    "price": 12.5,
+                    # "weights": {"weight": 12},
+                    "tax": {
+                        "cg": 5,
+                        "sg": 5
+                    },
+                    "tags": ["healthy","has good bacteria","egalitarion"],
+                    "friends": ["jai","ritvik","kanishak"],
+                },
+                {
+                    "name": "karan",
+                    "description": "Divyansh Karan",
+                    "price": 12.5,
+                    # "weights": {"weight": 12},
+                    "tax": {
+                        "cg": 5,
+                        "sg": 5
+                    },
+                    "tags": ["healthy", "has good bacteria", "egalitarion"],
+                    "friends": ["jai", "ritvik", "kanishak"],
+                }
+            ]
+        }
+    }
 
 @app.delete("/items/{item_id}")
 async def deleteItem(item_id: int,item: NestedItems):
     return {"item": item,"item_id": item_id}
+
+# Cookie ,Header
+from fastapi import Cookie,Header
+@app.patch("/items/")
+async def cookies(ads_id: Annotated[str |None,Cookie()]=None,agent: Annotated[str |None,Header(convert_underscores=True)]=None):
+    return {"cookie": ads_id,"Headers": agent}
+
+# Returning a response
+@app.post("/rurl")
+async def grurl() -> Item:
+    return Item(name="WheyProtein",description="WheyProtein to grow your Muscles",price=2500)
+
+
+# Responmse model will always take priority
+@app.post(path="/rurls",response_model=list[Item])
+async def grurls() -> any:
+    return [Item(name="WheyProtein",description="WheyProtein to grow your Muscles",price=2500),Item(name="Creatine",description="Creatine makes your biceps bigger",price=500)]
+
+class BaseUser(BaseModel):
+    username: str
+    email: str
+
+class UserIn(BaseUser):
+    password: str
+
+@app.post(path="/user",response_model_exclude_unset=True,status_code=201)
+async def getuser (user: UserIn) -> BaseUser:
+    return user
+
