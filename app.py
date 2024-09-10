@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 
 app = FastAPI()
 
@@ -53,7 +53,7 @@ async def read(id:int ,name: str,grade: str | None = None):
 # how to send a Request body
 
 class Item(BaseModel):
-    name : str
+    name : str = Field(default=None,max_length=300,description="The name of the item")
     description: str | None = None
     price: int
 
@@ -85,3 +85,30 @@ async def senditem(item_id: Annotated[int,Path(description="The id of the item t
     return {"message": f"The Item id is {item_id}"}
 # To FastAPI it dosent't matter if you declare default values after non default values
 # You'd never have problems if you Annnoted
+
+class User(BaseModel):
+    name: str
+    age: int
+
+from fastapi import Body
+
+@app.put("/items/{item_id}")
+async def putItem(item_id: Annotated[int,Path(description="The item_id",le=1000,ge=0)],importance: Annotated[int,Body(embed=True)],q: str | None = None,item: Item|None=None,user: User|None = None):
+    return {"message": item_id,"query": q,"item": item,"user": user,"importance": importance}
+
+class Tax(BaseModel):
+    cg: int
+    sg: int
+
+class NestedItems(BaseModel):
+    name: str
+    description: str | None
+    price: float
+    tags: list[str] = []
+    friends: set[str] = []
+    tax: Tax | None
+    weights: dict[str,float]
+
+@app.delete("/items/{item_id}")
+async def deleteItem(item_id: int,item: NestedItems):
+    return {"item": item,"item_id": item_id}
