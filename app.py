@@ -203,7 +203,7 @@ async def getuser (user: UserIn) -> BaseUser:
 
 from fastapi import Form
 
-@app.put("/login")
+@app.put("/login",tags=["user"])
 async def login(username: Annotated[str ,Form()],password: Annotated[str,Form()]):
     return {"username": username,"password": password}
 
@@ -222,7 +222,7 @@ from fastapi import File,UploadFile
 async def createFile(files: Annotated[list[bytes],File(description="A list of files sent as a in form data")]):
     return {"file_size": len(file) for file in files}
 
-@app.post("/uploadFile")
+@app.post("/uploadFile",tags=["files"],summary="Uploads a file",response_description="Description ab0ut what it does on this paticular route")
 async def fileUpload(file: UploadFile |None = None):
     # contents = await file.read()
     # print(contents)
@@ -230,7 +230,7 @@ async def fileUpload(file: UploadFile |None = None):
         return {"message": "No file sent"}
     return {"file": file.filename}
 
-@app.post("/files")
+@app.post("/files",deprecated=True)
 async def create_file(
         file: Annotated[bytes,File()],
         fileb: Annotated[UploadFile,File()],
@@ -245,6 +245,7 @@ async def create_file(
 from fastapi import HTTPException
 @app.put("/error")
 async def raiseerror():
+    """Document whatever what you want about this route and function you want"""
     raise HTTPException(status_code=404,detail="Item not found")
 
 from fastapi import Request
@@ -263,3 +264,47 @@ from fastapi import Request
 
 # from fastapi.exceptions import RequestValidationError
 # @app.exception_handlers(RequestValidationError)
+
+class Tags(Enum):
+    items = "items"
+    users = "users"
+
+# from fastapi.encoders import jsonable_encoder
+
+from fastapi import Depends
+
+async def common_parameters(q:str|None= None,skip: int = 0,limit: int = 100):
+    return {"q": q,"skip": skip,"limit": limit}
+
+commons = Annotated[dict,Depends(common_parameters)]
+
+class CommonQueryParams:
+    def __init__(self,q: str |None=None,skip:int= 0,limit: int = 100):
+        self.q = q
+        self.skip = skip
+        self.limit = limit
+        # We just use Depends(CommonQueryParams)
+        # commons:CommonQueryParams = Depends(CommonQueryParams)
+
+
+# You can also create sub dependencies
+# If we want many dependencies we cabnuse dependencies
+# These dependencies can also raise HTTP exceptions
+
+# for dependices in whole application we pass theme as arguments in FastAPI constructor
+# app = FastAPI(dependencies=[Depends(verify_token),Depends(verify_key)])
+
+# async def get_db():
+#     db = DBSessioon()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
+
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+@app.get("/route")
+async def verify(token: str = Depends(oauth2_scheme)):
+    return {"token": token}
