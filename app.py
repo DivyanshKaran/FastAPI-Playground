@@ -1,6 +1,10 @@
 from pydoc import describe
+from urllib.request import Request
 
+from certifi import contents
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse
 from enum import Enum
 from pydantic import BaseModel,Field
 
@@ -9,7 +13,19 @@ app = FastAPI()
 # The most simple FastAPI route
 @app.get("/")
 async def root():
-    return {"message": "Hello FastAPI"}
+    content = """
+    <body>
+    <form action="/file" enctype="multipart/form-data" method="post">
+    <input name="files" type="file" multiple>
+    <input type="submit">
+    </form>
+    <form action="/uploadfile" enctype="multipart/form-data" method="post">
+    <input name="files" type="file" multiple>
+    <input type="submit">
+    </form>
+    </body>
+        """
+    return HTMLResponse(content=content)
 
 
 @app.get("/div")
@@ -185,3 +201,65 @@ class UserIn(BaseUser):
 async def getuser (user: UserIn) -> BaseUser:
     return user
 
+from fastapi import Form
+
+@app.put("/login")
+async def login(username: Annotated[str ,Form()],password: Annotated[str,Form()]):
+    return {"username": username,"password": password}
+
+class FormData(BaseModel):
+    username: str
+    password: str
+    model_config = {"extra": "forbid"}
+
+@app.post("/login")
+async def login(data: Annotated[FormData,Form()]):
+    return data
+
+from fastapi import File,UploadFile
+
+@app.post("/file")
+async def createFile(files: Annotated[list[bytes],File(description="A list of files sent as a in form data")]):
+    return {"file_size": len(file) for file in files}
+
+@app.post("/uploadFile")
+async def fileUpload(file: UploadFile |None = None):
+    # contents = await file.read()
+    # print(contents)
+    if not file:
+        return {"message": "No file sent"}
+    return {"file": file.filename}
+
+@app.post("/files")
+async def create_file(
+        file: Annotated[bytes,File()],
+        fileb: Annotated[UploadFile,File()],
+        token: Annotated[str,Form()]
+):
+    return {
+        "file_size": len(file),
+        "token": token,
+        "Content_type": fileb.content_type
+    }
+
+from fastapi import HTTPException
+@app.put("/error")
+async def raiseerror():
+    raise HTTPException(status_code=404,detail="Item not found")
+
+from fastapi import Request
+# from fastapi.responses import JSONResponse
+#
+# class Custom_exception(Exception):
+#     def __init__(self,name: str):
+#         self.name = name
+#
+# @app.exception_handlers(Custom_exception)
+# async def custom_exception_handler(request: Request,exc: Custom_exception):
+#     return JSONResponse(
+#         status_code=418,
+#         content={"message": "There is a rainbow there"}
+#     )
+
+# from fastapi.exceptions import RequestValidationError
+# @app.exception_handlers(RequestValidationError)
